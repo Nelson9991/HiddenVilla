@@ -1,0 +1,98 @@
+﻿@page "/hotel-amenities/create"
+@page "/hotel-amenities/edit/{id:int}"
+@inject IAmenitieRepository AmenitieRepository
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
+@attribute [Authorize(Roles = Sd.RoleAdmin)]
+
+<div class="row mt-2 mb-5">
+	<h3 class="card-title text-info mb-3">@_title Amenitie</h3>
+	<div class="col-md-12">
+		<div class="card">
+			<div class="card-body">
+				<EditForm Model="@_amenitieModel" OnValidSubmit="HandleAmenitieUpsert">
+					<DataAnnotationsValidator />
+					<div class="mb-3">
+						<label for="name" class="form-label">Name</label>
+						<InputText class="form-control" id="name" @bind-Value="_amenitieModel.Name"></InputText>
+						<ValidationMessage For="() => _amenitieModel.Name" />
+					</div>
+					<div class="mb-3">
+						<label for="description" class="form-label">Description</label>
+						<InputTextArea class="form-control" style="height: 100px;" id="description" @bind-Value="_amenitieModel.Description"></InputTextArea>
+						<ValidationMessage For="() => _amenitieModel.Description" />
+					</div>
+					<div class="mb-3">
+						<label for="timming" class="form-label">Timming</label>
+						<InputText class="form-control" id="timming" @bind-Value="_amenitieModel.Timming"></InputText>
+						<ValidationMessage For="() => _amenitieModel.Timming" />
+					</div>
+					<div class="mb-3">
+						<label for="icon" class="form-label">Icon</label>
+						<InputText class="form-control" id="icon" @bind-Value="_amenitieModel.Icon"></InputText>
+						<ValidationMessage For="() => _amenitieModel.Icon" />
+					</div>
+					<div>
+						<button type="submit" class="btn btn-primary">@_title Amenitie</button>
+						<a class="btn btn-danger" href="hotel-amenities">Back To Amenitie List</a>
+					</div>
+				</EditForm>
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+
+	[Parameter]
+	public int? Id { get; set; }
+
+	private AmenitieDto _amenitieModel = new();
+	private string _title = "Create";
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (Id is not null)
+		{
+			_title = "Update";
+			_amenitieModel = await AmenitieRepository.GetAmenitie(Id.Value);
+		}
+		else
+		{
+			_amenitieModel ??= new AmenitieDto();
+		}
+	}
+
+	private async Task HandleAmenitieUpsert()
+	{
+		try
+		{
+			var ameniteExists = await AmenitieRepository.AmenitieExists(_amenitieModel.Name, _amenitieModel.Id);
+
+			if (ameniteExists)
+			{
+				await JsRuntime.ToastrFailure("Room name already exists");
+				return;
+			}
+
+			if (Id is not null && _title == "Update" && _amenitieModel.Id != 0)
+			{
+				var updateResult = await AmenitieRepository.UpdateAmenitie(Id.Value, _amenitieModel);
+				await JsRuntime.ToastrSuccess("Amenitie updated successfuly");
+			}
+			else
+			{
+				var createdAmenite = await AmenitieRepository.CreateAmenitie(_amenitieModel);
+				await JsRuntime.ToastrSuccess("Amenitie created successfuly");
+			}
+		}
+		catch (Exception e)
+		{
+			Console.WriteLine(e);
+			throw;
+		}
+
+		NavigationManager.NavigateTo("hotel-amenities");
+	}
+
+}

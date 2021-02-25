@@ -1,0 +1,39 @@
+@using System.Globalization
+
+<div class="col-4 bg-light border p-2" style="margin-right: 25px;">
+    <h4 class="text-muted mb-1">Room - @Room.Id</h4>
+    @Room.RoomName
+    <input type="checkbox" class="form-check-input" @onchange="RoomCheckBoxSelectionChange">
+    <br />
+    @Room.Price.ToString("C", new CultureInfo("es-EC"))
+    <div class="form-check mt-1">
+        <input type="checkbox" class="form-check-input" id="isActive@(Room.Id)" @bind="Room.IsActive" />
+        <label for="isActive@(Room.Id)" class="form-check-label">Is Active</label>
+    </div>
+    <span>This room is @(Room.IsActive ? "Active" : "Inactive")</span>
+    <br />
+    @if (Room.IsActive)
+    {
+        foreach (var blazorRoomProp in Room.RoomProps)
+        {
+            <span>@blazorRoomProp.Name - @blazorRoomProp.Value</span>
+            <br />
+        }
+    }
+    <div>
+        <EditDeleteButton IsAdmin="true" />
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public BlazorRoom Room { get; set; }
+    
+    [Parameter]
+    public EventCallback<bool> OnRoomCheckBoxSelection { get; set; }
+
+    private async Task RoomCheckBoxSelectionChange(ChangeEventArgs args)
+    {
+        await OnRoomCheckBoxSelection.InvokeAsync((bool)args.Value);
+    }
+}

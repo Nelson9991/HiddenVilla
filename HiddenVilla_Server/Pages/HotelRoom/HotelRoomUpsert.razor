@@ -1,0 +1,330 @@
+﻿@page "/hotel-room/create"
+@page "/hotel-room/edit/{id:int}"
+@using System.IO
+@inject IHotelRoomRepository HotelRoomRepository
+@inject IHotelRoomImagesRepository HotelRoomImagesRepository
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
+@inject IFileUpload FileUpload
+@attribute [Authorize(Roles = Sd.RoleAdmin)]
+
+<div class="row mt-2 mb-5">
+	<h3 class="card-title text-info mb-3 ml-3">@_title Hotel Room</h3>
+	<div class="col-md-12">
+		<div class="card">
+			<div class="card-body">
+				<EditForm Model="@_hotelRoomModel" OnValidSubmit="HandleHotelRoomUpsert">
+					<DataAnnotationsValidator/>
+
+					<div class="mb-3">
+						<label for="name" class="form-label">Name</label>
+						<InputText class="form-control" id="name" @bind-Value="_hotelRoomModel.Name"></InputText>
+						<ValidationMessage For="@(() => _hotelRoomModel.Name)"/>
+					</div>
+					<div class="mb-3">
+						<label for="occupancy" class="form-label">Occupancy</label>
+						<InputNumber class="form-control" id="occupancy" @bind-Value="_hotelRoomModel.Occupancy"></InputNumber>
+						<ValidationMessage For="@(() => _hotelRoomModel.Occupancy)"/>
+					</div>
+					<div class="mb-3">
+						<label for="regRate" class="form-label">Rate</label>
+						<InputNumber class="form-control" id="regRate" @bind-Value="_hotelRoomModel.RegularRate"></InputNumber>
+						<ValidationMessage For="@(() => _hotelRoomModel.RegularRate)"/>
+					</div>
+					<div class="mb-3">
+						<label for="sqFt" class="form-label">Sq Ft</label>
+						<InputText class="form-control" id="sqFt" @bind-Value="_hotelRoomModel.SqFt"></InputText>
+					</div>
+					<div class="mb-3" style="height: 250px;">
+						<label class="form-label">Details</label>
+						@*<InputTextArea class="form-control" id="details" @bind-Value="_hotelRoomModel.Details"></InputTextArea>*@
+						<BlazoredTextEditor @ref="@_quillHtml" Placeholder="Please enter room details">
+							<ToolbarContent>
+								<select class="ql-header">
+									<option selected=""></option>
+									<option value="1"></option>
+									<option value="2"></option>
+									<option value="3"></option>
+									<option value="4"></option>
+									<option value="5"></option>
+								</select>
+								<span class="ql-formats">
+									<button class="ql-bold"></button>
+									<button class="ql-italic"></button>
+									<button class="ql-underline"></button>
+									<button class="ql-strike"></button>
+								</span>
+								<span class="ql-formats">
+									<select class="ql-color"></select>
+									<select class="ql-background"></select>
+								</span>
+								<span class="ql-formats">
+									<button class="ql-list" value="ordered"></button>
+									<button class="ql-list" value="bullet"></button>
+								</span>
+								<span class="ql-formats">
+									<button class="ql-link"></button>
+								</span>
+							</ToolbarContent>
+							<EditorContent>
+
+							</EditorContent>
+						</BlazoredTextEditor>
+					</div>
+					<div class="mb-3" style="padding-top: 75px;">
+						<InputFile OnChange="@HandleImageUpload" class="form-control" multiple></InputFile>
+						<div class="row">
+							@if (IsImageUploadProcStarted)
+							{
+								<div class="col-md-12 mt-3">
+									<span>
+										<i class="fas fa-spin fa-spinner"></i>
+										Please wait... Images are uploading...
+									</span>
+								</div>
+							}
+							@if (_hotelRoomModel.ImagesUrls is not null &&
+							     _hotelRoomModel.ImagesUrls.Count > 0)
+							{
+								int serial = 1;
+								foreach (var imageUrl in _hotelRoomModel.ImagesUrls)
+								{
+									<div class="col-md-2 mt-3">
+										<div class="room-image" style="background: url('@imageUrl') 50% 50%;">
+											<span class="room-image-title">@serial</span>
+										</div>
+										<div class="d-grid gap-2">
+											<button class="btn btn-outline-danger mt-4" type="button" @onclick="() => DeletePhoto(imageUrl)">
+												Delete
+											</button>
+										</div>
+									</div>
+									serial++;
+								}
+							}
+						</div>
+					</div>
+					<div>
+						<button type="submit" class="btn btn-primary">@_title Room</button>
+						<a class="btn btn-danger" href="hotel-room">Back To Room List</a>
+					</div>
+				</EditForm>
+			</div>
+		</div>
+	</div>
+</div>
+
+@code {
+
+	[Parameter]
+	public int? Id { get; set; }
+
+	[CascadingParameter]
+	public Task<AuthenticationState> AuthenticationState { get; set; }
+
+	private HotelRoomDto _hotelRoomModel = new();
+	private string _title = "Create";
+	private HotelRoomImageDto _roomImage = new();
+	private List<string> DeleteImageUrls { get; set; } = new();
+	private bool IsImageUploadProcStarted { get; set; }
+	private BlazoredTextEditor _quillHtml;
+
+	protected override async Task OnInitializedAsync()
+	{
+		var authState = await AuthenticationState;
+		if (!authState.User.IsInRole(Sd.RoleAdmin))
+		{
+			var uri = new Uri(NavigationManager.Uri);
+			NavigationManager.NavigateTo($"/Identity/Account/Login?returnUrl={uri.LocalPath}");
+		}
+
+		if (Id is not null)
+		{
+			_title = "Update";
+			_hotelRoomModel = await HotelRoomRepository.GetHotelRoom(Id.Value);
+			if (_hotelRoomModel.HotelRoomImages is not null)
+			{
+				_hotelRoomModel.ImagesUrls = _hotelRoomModel.HotelRoomImages.Select(x => x.RoomImageUrl).ToList();
+			}
+		}
+		else
+		{
+			_hotelRoomModel = new HotelRoomDto {HotelRoomImages = new List<HotelRoomImageDto>()};
+		}
+	}
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (!firstRender)
+		{
+			return;
+		}
+
+		var loading = true;
+
+		while (loading)
+		{
+			try
+			{
+				if (!string.IsNullOrEmpty(_hotelRoomModel.Details))
+				{
+					await _quillHtml.LoadHTMLContent(_hotelRoomModel.Details);
+				}
+				loading = false;
+			}
+			catch
+			{
+				await Task.Delay(10);
+				loading = true;
+			}
+		}
+	}
+
+	private async Task HandleHotelRoomUpsert()
+	{
+		try
+		{
+			var roomExist = await HotelRoomRepository.RoomExists(_hotelRoomModel.Name, _hotelRoomModel.Id);
+
+			if (roomExist)
+			{
+				await JsRuntime.ToastrFailure("Room name already exists");
+				return;
+			}
+
+			if (_hotelRoomModel.Id != 0 && _title == "Update" && Id is not null)
+			{
+				_hotelRoomModel.Details = await _quillHtml.GetHTML();
+				var updateResult = await HotelRoomRepository.UpdateHotelRoom(Id.Value, _hotelRoomModel);
+				if ((_hotelRoomModel.ImagesUrls is not null && _hotelRoomModel.ImagesUrls.Any())
+				    || (DeleteImageUrls is not null && DeleteImageUrls.Any()))
+				{
+					if (DeleteImageUrls is not null && DeleteImageUrls.Any())
+					{
+						foreach (var deleteImageUrl in DeleteImageUrls)
+						{
+							var imageName = deleteImageUrl.Replace($"{NavigationManager.BaseUri}roomImages/", "");
+							var result = FileUpload.DeleteFile(imageName);
+							await HotelRoomImagesRepository.DeleteHotelRoomImageByImageUrl(deleteImageUrl);
+						}
+					}
+					await AddHotelRoomImage(updateResult);
+				}
+				await JsRuntime.ToastrSuccess("Hotel Room updated successfully");
+			}
+			else
+			{
+				_hotelRoomModel.Details = await _quillHtml.GetHTML();
+				var createdRoom = await HotelRoomRepository.CreateHotelRoom(_hotelRoomModel);
+				await AddHotelRoomImage(createdRoom);
+				await JsRuntime.ToastrSuccess("Hotel Room created successfully");
+			}
+		}
+		catch (Exception e)
+		{
+			Console.WriteLine(e.Message);
+		}
+
+		NavigationManager.NavigateTo("hotel-room");
+	}
+
+	private async Task AddHotelRoomImage(HotelRoomDto createdRoom)
+	{
+		if (_hotelRoomModel.ImagesUrls is null || _hotelRoomModel.ImagesUrls.Count == 0)
+		{
+			return;
+		}
+
+		foreach (var imageUrl in _hotelRoomModel.ImagesUrls)
+		{
+	// ReSharper disable once UseMethodAny.2
+	// ReSharper disable once ReplaceWithSingleCallToCount
+			if (_hotelRoomModel.HotelRoomImages.Where(x => x.RoomImageUrl == imageUrl).Count() == 0)
+			{
+				_roomImage ??= new HotelRoomImageDto();
+
+				_roomImage.RoomId = createdRoom.Id;
+				_roomImage.RoomImageUrl = imageUrl;
+
+				await HotelRoomImagesRepository.CreateHotelRoomImage(_roomImage);
+			}
+		}
+	}
+
+	private async Task HandleImageUpload(InputFileChangeEventArgs arg)
+	{
+		IsImageUploadProcStarted = true;
+		try
+		{
+			var images = new List<string>();
+			if (arg.GetMultipleFiles().Count > 0)
+			{
+				foreach (var file in arg.GetMultipleFiles())
+				{
+					FileInfo fileInfo = new FileInfo(file.Name);
+					if (fileInfo.Extension.ToLower() == ".jpg" ||
+					    fileInfo.Extension.ToLower() == ".png" ||
+					    fileInfo.Extension.ToLower() == ".jpeg")
+					{
+						var uploadedImagePath = await FileUpload.UploadFile(file);
+						images.Add(uploadedImagePath);
+					}
+					else
+					{
+						await JsRuntime.ToastrFailure("Please select .jpg/.jpeg/.png file only");
+						return;
+					}
+				}
+
+				if (images.Any())
+				{
+					if (_hotelRoomModel.ImagesUrls != null && _hotelRoomModel.ImagesUrls.Any())
+					{
+						_hotelRoomModel.ImagesUrls.AddRange(images);
+					}
+					else
+					{
+						_hotelRoomModel.ImagesUrls = new List<string>();
+						_hotelRoomModel.ImagesUrls.AddRange(images);
+					}
+				}
+				else
+				{
+					await JsRuntime.ToastrFailure("Image uploading failed");
+				}
+
+				IsImageUploadProcStarted = false;
+			}
+		}
+		catch (Exception e)
+		{
+			Console.WriteLine(e.Message);
+		}
+	}
+
+	private void DeletePhoto(string imageUrl)
+	{
+		try
+		{
+			var imageIndex = _hotelRoomModel.ImagesUrls.FindIndex(x => x == imageUrl);
+			var imageName = imageUrl.Replace($"{NavigationManager.BaseUri}roomImages/", "");
+
+			if (_hotelRoomModel.Id == 0 && _title == "Create")
+			{
+				var result = FileUpload.DeleteFile(imageName);
+			}
+			else
+			{
+				DeleteImageUrls ??= new List<string>();
+				DeleteImageUrls.Add(imageUrl);
+			}
+
+			_hotelRoomModel.ImagesUrls.RemoveAt(imageIndex);
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(ex.Message);
+		}
+	}
+
+}

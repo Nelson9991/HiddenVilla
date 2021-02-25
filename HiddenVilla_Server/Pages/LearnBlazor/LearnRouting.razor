@@ -1,0 +1,22 @@
+﻿@page "/learnRouting"
+@page "/newRouting"
+@page "/learnRouting/{param1:int}/{param2}"
+
+<h3>LearnRouting</h3>
+
+<h4>Parameter 1 : @Param1</h4>
+<h4>Parameter 2 : @Param2</h4>
+
+<NavLink class="btn btn-secondary" href="learnAdvanceRouting?param1=blazing&param2=blazor">
+	Routing with query param
+</NavLink>
+
+@code {
+
+	[Parameter]
+	public int Param1 { get; set; }
+
+	[Parameter]
+	public string Param2 { get; set; }
+
+}

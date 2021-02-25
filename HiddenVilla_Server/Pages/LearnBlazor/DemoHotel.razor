@@ -1,0 +1,97 @@
+﻿@page "/demoHotel"
+
+<h3>We will display hotel rooms and amenitites here!</h3>
+
+<div class="alert-info container-fluid pb-2">
+	<h2 class="text-info pt-2">
+		Room List [Using Component]
+	</h2>
+	<h4 class="text-info">Hotel's Room's</h4>
+	<span>Rooms Selected - @SelectedRooms</span>
+	<div class="row m-0">
+		@foreach (var room in _roomList)
+		{
+			<IndividualRoom Room="@room" OnRoomCheckBoxSelection="@RoomSelectionCounterChange"/>
+		}
+	</div>
+
+	<h4 class="text-info mt-3">Hotel's Aminities</h4>
+	<div class="row m-0">
+		@foreach (var amenity in _amenitiesList)
+		{
+			<IndividualAminitie Amenitie="@amenity" IsAdmin="false" OnAmenitySelection="@AmenitySelectionChange">
+				<Rf1>
+					#1
+				</Rf1>
+				<Rf2>
+					#2
+				</Rf2>
+			</IndividualAminitie>
+		}
+	</div>
+	<span>Selected Amenity : @SelectedAmenity</span>
+</div>
+
+@code {
+	private List<BlazorRoom> _roomList = new();
+	private List<Amenitie> _amenitiesList = new();
+	public int SelectedRooms { get; set; }
+	public string SelectedAmenity { get; set; }
+
+	protected override void OnInitialized()
+	{
+		_roomList.Add(new BlazorRoom()
+		{
+			Id = 101,
+			RoomName = "King Suite",
+			IsActive = false,
+			Price = 100,
+			RoomProps = new List<BlazorRoomProp>()
+			{
+				new BlazorRoomProp() {Id = 1, Name = "Sq Ft", Value = "100"},
+				new BlazorRoomProp() {Id = 2, Name = "Occupancy", Value = "3"}
+			}
+		});
+
+		_roomList.Add(new BlazorRoom()
+		{
+			Id = 102,
+			RoomName = "Queen Suite",
+			IsActive = false,
+			Price = 70,
+			RoomProps = new List<BlazorRoomProp>()
+			{
+				new BlazorRoomProp() {Id = 1, Name = "Sq Ft", Value = "70"},
+				new BlazorRoomProp() {Id = 2, Name = "Occupancy", Value = "2"}
+			}
+		});
+
+		_amenitiesList.AddRange(new List<Amenitie>()
+		{
+			new Amenitie() {Id = 111, Name = "Gym", Description = "24X7 gym room available"},
+			new Amenitie() {Id = 222, Name = "Swimming Pool", Description = "Pool room is open from 6am to 10pm"},
+			new Amenitie() {Id = 333, Name = "Free Breakfast", Description = "Enjoy free breakfast at our hotel"}
+		});
+	}
+
+	private void RoomSelectionCounterChange(bool isRoomSelected)
+	{
+		if (isRoomSelected)
+		{
+			SelectedRooms++;
+		}
+		else
+		{
+			SelectedRooms--;
+		}
+	}
+
+	private void AmenitySelectionChange(string selectedAmenity)
+	{
+		if (!string.IsNullOrEmpty(selectedAmenity))
+		{
+			SelectedAmenity = selectedAmenity;
+		}
+	}
+
+}

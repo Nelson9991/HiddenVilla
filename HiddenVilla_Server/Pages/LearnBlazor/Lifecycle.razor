@@ -1,0 +1,95 @@
+﻿@page "/lifecycle"
+@using System.Threading
+
+<h3>Lifecycle</h3>
+
+<div class="border">
+	<LifecycleComponent CountValue="@_currentCount"/>
+</div>
+<p>Current count: @_currentCount</p>
+
+<button class="btn btn-primary mb-3" @onclick="IncrementCount">Click me</button>
+<br>
+@_count
+<br>
+<button @onclick="StartCountDown" class="btn btn-primary">Start Countdown</button>
+<br/>
+
+@foreach (var item in _enventType)
+{
+	@item
+	<hr/>
+}
+
+@code {
+	private int _currentCount = 0;
+	private List<string> _enventType = new();
+	private int _count = 5;
+
+	private void IncrementCount()
+	{
+		_currentCount++;
+	}
+
+	protected override void OnInitialized()
+	{
+		_enventType.Add("OnInitialized is called");
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		_enventType.Add("OnInitializedAsync is called");
+		await Task.Delay(1000);
+	}
+
+	protected override void OnParametersSet()
+	{
+		_enventType.Add("OnParametersSet is called");
+	}
+
+	protected override async Task OnParametersSetAsync()
+	{
+		_enventType.Add("OnParametersSetAsync is called");
+		await Task.Delay(1000);
+	}
+
+	protected override void OnAfterRender(bool firstRender)
+	{
+		if (firstRender)
+		{
+			_currentCount = 111;
+		}
+		else
+		{
+			_currentCount = 999;
+		}
+		_enventType.Add("OnAfterRender is called");
+	}
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		_enventType.Add("OnAfterRenderAsync is called");
+		await Task.Delay(1000);
+	}
+
+	protected override bool ShouldRender()
+	{
+		_enventType.Add("ShouldRender is called");
+		return true;
+	}
+	
+	private void StartCountDown()
+	{
+		var timer = new Timer(TimerCallback, null,1000,1000);
+	}
+
+	private void TimerCallback(object state)
+	{
+		if (_count > 0)
+		{
+			_count--;
+			InvokeAsync(StateHasChanged);
+		}
+	}
+
+}

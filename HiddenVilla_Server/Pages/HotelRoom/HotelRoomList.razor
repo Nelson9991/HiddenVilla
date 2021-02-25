@@ -1,0 +1,95 @@
+﻿@page "/hotel-room"
+@inject IHotelRoomRepository HotelRoomRepository
+@inject IJSRuntime JsRuntime
+@inject IFileUpload FileUpload
+@inject NavigationManager NavigationManager
+@attribute [Authorize(Roles = Sd.RoleAdmin)]
+
+<div class="row mt-4">
+	<div class="col-8">
+		<h4 class="card-title text-info">Hotel Room's</h4>
+	</div>
+	<div class="col-3 offset-1">
+		<NavLink href="hotel-room/create" class="btn btn-info form-control">Add New Room</NavLink>
+	</div>
+</div>
+
+<div class="row mt-4">
+	<div class="col-12">
+		<table class="table table-bordered table-hover">
+			<thead>
+			<tr>
+				<th>Name</th>
+				<th>Occupancy</th>
+				<th>RegularRate</th>
+				<th>Sq Ft</th>
+				<th></th>
+			</tr>
+			</thead>
+			<tbody>
+			@if (_hotelRooms.Any())
+			{
+				@foreach (var room in _hotelRooms)
+				{
+					<tr>
+						<td>@room.Name</td>
+						<td>@room.Occupancy</td>
+						<td>@room.RegularRate.ToString("C")</td>
+						<td>@room.SqFt</td>
+						<td>
+							<a href="hotel-room/edit/@room.Id" class="btn btn-primary">Edit</a>
+							<button class="btn btn-danger" @onclick="() => HandleDelete(room.Id)">Delete</button>
+						</td>
+					</tr>
+				}
+			}
+			else
+			{
+				<tr>
+					<td colspan="5">No records found.</td>
+				</tr>
+			}
+
+			</tbody>
+		</table>
+	</div>
+</div>
+
+<DeleteConfirmation ConfirmationChanged="@ConfirmDelete_Click" IsParentProcessing="@_isProcessing"></DeleteConfirmation>
+
+@code {
+	private IList<HotelRoomDto> _hotelRooms = new List<HotelRoomDto>();
+	private int? _deleteRoomId = null;
+	private bool _isProcessing = false;
+
+	protected override async Task OnInitializedAsync()
+	{
+		_hotelRooms = await HotelRoomRepository.GetAllHotelRooms();
+	}
+
+	private async Task HandleDelete(int roomId)
+	{
+		_deleteRoomId = roomId;
+		await JsRuntime.InvokeVoidAsync("handleDeleteConfirmationModal", true);
+	}
+
+	public async Task ConfirmDelete_Click(bool isConfirmed)
+	{
+		_isProcessing = true;
+		if (isConfirmed && _deleteRoomId is not null)
+		{
+			var hotelRoom = await HotelRoomRepository.GetHotelRoom(_deleteRoomId.Value);
+			foreach (var image in hotelRoom.HotelRoomImages)
+			{
+				var imageName = image.RoomImageUrl.Replace($"{NavigationManager.BaseUri}roomImages/", "");
+				FileUpload.DeleteFile(imageName);
+			}
+			await HotelRoomRepository.DeleteHotelRoom(_deleteRoomId.Value);
+			await JsRuntime.ToastrSuccess("Hotel Room Deleted successfuly");
+			_hotelRooms = await HotelRoomRepository.GetAllHotelRooms();
+			await JsRuntime.InvokeVoidAsync("handleDeleteConfirmationModal", false);
+		}
+		_isProcessing = false;
+	}
+
+}

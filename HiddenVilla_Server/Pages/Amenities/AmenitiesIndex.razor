@@ -1,0 +1,88 @@
+﻿@page "/hotel-amenities"
+@inject IAmenitieRepository AmenitieRepository
+@inject IJSRuntime JsRuntime
+@attribute [Authorize(Roles = Sd.RoleAdmin)]
+
+<div class="row mt-4">
+	<div class="col-8">
+		<h4 class="card-title text-info">Hotel Amenitie's</h4>
+	</div>
+	<div class="col-3 offset-1">
+		<NavLink href="hotel-amenities/create" class="btn btn-info form-control">
+			Add New Amenitie
+		</NavLink>
+	</div>
+</div>
+
+<div class="row mt-4">
+	<div class="col-12">
+		<table class="table table-bordered table-hover">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Timming</th>
+					<th>Icon</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				@if (_amenitieList is not null && _amenitieList.Count > 0)
+				{
+					@foreach (var amenite in _amenitieList)
+					{
+						<tr>
+							<td>@amenite.Name</td>
+							<td>@amenite.Timming</td>
+							<td>
+								<i class="@amenite.Icon"></i>
+							</td>
+							<td>
+								<a href="hotel-amenities/edit/@amenite.Id" class="btn btn-primary">Edit</a>
+								<button class="btn btn-danger" @onclick="() => HandleDelete(amenite.Id)">Delete</button>
+							</td>
+						</tr>
+					}
+				}
+				else
+				{
+					<tr>
+						<td colspan="4">No records found.</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+</div>
+
+<DeleteConfirmation ConfirmationChanged="@ConfirmDelete_Click" IsParentProcessing="@_isProcessing"></DeleteConfirmation>
+
+@code {
+	private IList<AmenitieDto> _amenitieList = new List<AmenitieDto>();
+	private int? _deleteAmeniteId = null;
+	private bool _isProcessing = false;
+
+	protected override async Task OnInitializedAsync()
+	{
+		_amenitieList = await AmenitieRepository.GetAllAmenities();
+	}
+
+	private async Task HandleDelete(int amenitieId)
+	{
+		_deleteAmeniteId = amenitieId;
+		await JsRuntime.InvokeVoidAsync("handleDeleteConfirmationModal", true);
+	}
+
+	public async Task ConfirmDelete_Click(bool isConfirmed)
+	{
+		_isProcessing = true;
+		if (isConfirmed && _deleteAmeniteId is not null)
+		{
+			await AmenitieRepository.DeleteAmenitie(_deleteAmeniteId.Value);
+			await JsRuntime.ToastrSuccess("Amenitie Deleted successfuly");
+			_amenitieList = await AmenitieRepository.GetAllAmenities();
+			await JsRuntime.InvokeVoidAsync("handleDeleteConfirmationModal", false);
+		}
+		_isProcessing = false;
+	}
+
+}

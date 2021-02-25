@@ -1,0 +1,26 @@
+﻿<h3>Lifecycle Child Component</h3>
+
+@foreach (var item in _enventType)
+{
+	@item
+	<hr/>
+}
+
+@code {
+
+	[Parameter]
+	public int CountValue { get; set; }
+
+	private List<string> _enventType = new();
+
+	protected override void OnInitialized()
+	{
+		_enventType.Add("Child - OnInitialized is called");
+	}
+
+	protected override void OnParametersSet()
+	{
+		_enventType.Add("Child - OnParametersSet is called");
+	}
+
+}
